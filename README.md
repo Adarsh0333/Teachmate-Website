@@ -75,9 +75,9 @@ This command starts the backend server.
 ## Sample Login Credentials
 After setting up, you must first **Sign Up** using the emails below to create the accounts.
 
-For Student – IT MUIST INCLUDE ANY OF (bce,mim,bai) and should end with                        @vitbhopal.ac.in
+For Student – IT MUST INCLUDE ANY OF (bce,mim,bai) and should end with                        @vitbhopal.ac.in
 
 For Teacher- IT MUST END WITH @vitbhopal.ac.in
 
-* **Student Email:** `student23.bce@vitbhopal.ac.in’
+* **Student Email:** `student23.bce@vitbhopal.ac.in`
 * **Teacher Email:** `teacher1@vitbhopal.ac.in`
