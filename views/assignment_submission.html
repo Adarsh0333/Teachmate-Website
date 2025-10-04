@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Submit Assignment</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/student-dashboard">Student Portal</a>
+            <a href="/logout" class="btn btn-light">Logout</a>
+        </div>
+    </nav>
+    <div class="container py-5">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/student-dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a id="class-breadcrumb-link" href="#">Class</a></li>
+                <li class="breadcrumb-item active" aria-current="page" id="assignment-breadcrumb-title">Loading Assignment...</li>
+            </ol>
+        </nav>
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h2 id="assignment-title">Loading...</h2>
+                <p class="text-muted mb-0" id="due-date">Due: ...</p>
+            </div>
+            <div class="card-body">
+                <div id="assignment-file-area" class="mb-3"></div>
+                <p id="assignment-description">Loading description...</p>
+                <hr>
+                <div id="submission-status-area"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const assignmentId = window.location.pathname.split('/').pop();
+        async function fetchAndDisplayData() {
+            try {
+                const detailsResponse = await fetch(`/api/student/assignment/${assignmentId}/details`);
+                const details = await detailsResponse.json();
+
+                document.getElementById('assignment-breadcrumb-title').textContent = details.title;
+                document.getElementById('class-breadcrumb-link').textContent = details.class_name;
+                document.getElementById('class-breadcrumb-link').href = `/student/class/${details.class_id}`;
+                document.getElementById('assignment-title').textContent = details.title;
+                document.getElementById('due-date').textContent = `Due: ${new Date(details.due_date).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`;
+                document.getElementById('assignment-description').textContent = details.description || 'No description provided.';
+                
+                const assignmentFileArea = document.getElementById('assignment-file-area');
+                if (details.files && details.files.length > 0) {
+                    let filesHtml = '<h5>Assignment Files</h5>';
+                    details.files.forEach(file => {
+                        filesHtml += `<a href="/uploads/${file.file_path}" class="btn btn-primary me-2 mb-2" download="${file.original_name}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-download me-2" viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z"/></svg>
+                            ${file.original_name}
+                        </a>`;
+                    });
+                    assignmentFileArea.innerHTML = filesHtml;
+                }
+
+                const statusResponse = await fetch(`/api/assignment/${assignmentId}/submission-status`);
+                const status = await statusResponse.json();
+                const submissionArea = document.getElementById('submission-status-area');
+                if (status.submitted) {
+                    const submittedDate = new Date(status.submitted_at).toLocaleString();
+                    const lateMessage = status.is_late ? '<p class="text-danger fw-bold">This assignment was submitted late.</p>' : '';
+                    let gradeAndFeedbackHtml = '';
+                    if (status.grade || status.feedback) {
+                        gradeAndFeedbackHtml = `
+                            <div class="mt-4 p-3 bg-white rounded border">
+                                <h5>Teacher's Feedback</h5>
+                                <p class="mb-1"><strong>Grade:</strong> ${status.grade || 'Not graded yet'}</p>
+                                <p class="mb-0"><strong>Feedback:</strong> ${status.feedback || 'No feedback provided.'}</p>
+                            </div>
+                        `;
+                    }
+                    submissionArea.innerHTML = `
+                        <h5 class="text-success">Submitted!</h5>
+                        <p>You submitted this assignment on ${submittedDate}.</p>
+                        ${lateMessage}
+                        <a href="/uploads/${status.file_path}" class="btn btn-outline-secondary mb-3" download>Download Your Submission</a>
+                        ${gradeAndFeedbackHtml}
+                    `;
+                } else {
+                    submissionArea.innerHTML = `
+                        <h5>Submit Your Work</h5>
+                        <form action="/assignment/${assignmentId}/submit" method="POST" enctype="multipart/form-data">
+                            <div class="mb-3">
+                                <label for="submissionFile" class="form-label">Upload your file:</label>
+                                <input class="form-control" type="file" id="submissionFile" name="submissionFile" required>
+                            </div>
+                            <button type="submit" class="btn btn-success">Submit Assignment</button>
+                        </form>
+                    `;
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                const submissionArea = document.getElementById('submission-status-area');
+                submissionArea.innerHTML = '<p class="text-danger">Could not load assignment data. Please try again.</p>';
+            }
+        }
+        window.addEventListener('DOMContentLoaded', fetchAndDisplayData);
+    </script>
+</body>
+</html>

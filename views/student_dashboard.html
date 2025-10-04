@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .class-card-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .class-card-link .card:hover {
+            transform: scale(1.03);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/student-dashboard">Student Portal</a>
+            <a href="/logout" class="btn btn-light">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <h1 class="display-5">Student Dashboard 🧑‍🎓</h1>
+        <p class="lead">From here, you can join new classes and view your study materials.</p>
+        
+        <form action="/join-class" method="POST" class="mt-3">
+            <div class="input-group mb-3" style="max-width: 400px;">
+                <input type="text" class="form-control" name="joinCode" placeholder="Enter Class Code" required>
+                <button class="btn btn-success" type="submit">Join Class</button>
+            </div>
+        </form>
+
+        <hr class="my-4">
+
+        <!-- Upcoming Assignments Section -->
+        <div class="mb-5">
+            <h3>Upcoming Assignments</h3>
+            <div class="list-group" id="upcoming-assignments-list">
+                <!-- Upcoming assignments will be dynamically inserted here -->
+            </div>
+        </div>
+
+        <div class="mt-4">
+            <h3>My Enrolled Classes</h3>
+            <div id="class-list" class="row"></div>
+        </div>
+    </div>
+
+    <script>
+        // Fetches and displays the list of classes the student is enrolled in
+        async function fetchEnrolledClasses() {
+            const classListDiv = document.getElementById('class-list');
+            try {
+                const response = await fetch('/api/student/classes');
+                const enrolledClasses = await response.json();
+                if (enrolledClasses.length === 0) {
+                    classListDiv.innerHTML = '<p class="text-muted">You are not enrolled in any classes yet.</p>';
+                    return;
+                }
+                classListDiv.innerHTML = '';
+                enrolledClasses.forEach(cls => {
+                    const classCard = `
+                        <div class="col-md-4 mb-3">
+                            <a href="/student/class/${cls.class_id}" class="class-card-link">
+                                <div class="card h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${cls.class_name}</h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">${cls.course_name}</h6>
+                                        <p class="card-text mb-1"><small>${cls.semester_name || 'N/A'} ${cls.year || ''}</small></p>
+                                        <p class="card-text">
+                                            Taught by: <strong>${cls.teacher_name}</strong>
+                                        </p>
+                                    </div>
+                                </div>
+                            </a>
+                        </div>
+                    `;
+                    classListDiv.innerHTML += classCard;
+                });
+            } catch (error) {
+                console.error('Failed to display classes:', error);
+                classListDiv.innerHTML = '<p class="text-danger">Error loading classes.</p>';
+            }
+        }
+
+        // Fetches and displays upcoming assignments
+        async function fetchUpcomingAssignments() {
+            const assignmentsList = document.getElementById('upcoming-assignments-list');
+            try {
+                const response = await fetch('/api/student/upcoming-assignments');
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                const assignments = await response.json();
+
+                if (assignments.length === 0) {
+                    assignmentsList.innerHTML = '<div class="list-group-item">You have no upcoming assignments.</div>';
+                    return;
+                }
+
+                assignmentsList.innerHTML = '';
+                assignments.forEach(assignment => {
+                    const dueDate = new Date(assignment.due_date).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+                    const listItem = `
+                        <a href="/student/assignment/${assignment.assignment_id}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${assignment.title}</h6>
+                                <small class="text-danger">Due: ${dueDate}</small>
+                            </div>
+                            <p class="mb-1 text-muted small">From class: ${assignment.class_name}</p>
+                        </a>
+                    `;
+                    assignmentsList.innerHTML += listItem;
+                });
+            } catch (error) {
+                console.error('Failed to fetch upcoming assignments:', error);
+                assignmentsList.innerHTML = '<div class="list-group-item text-danger">Error loading assignments.</div>';
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchUpcomingAssignments();
+            fetchEnrolledClasses();
+        });
+    </script>
+</body>
+</html>

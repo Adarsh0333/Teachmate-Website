@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Assignment Submissions</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/teacher-dashboard">Teacher Portal</a>
+            <a href="/logout" class="btn btn-light">Logout</a>
+        </div>
+    </nav>
+
+    <div class="container py-5">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/teacher-dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item"><a id="class-breadcrumb-link" href="#">Class</a></li>
+                <li class="breadcrumb-item active" aria-current="page" id="assignment-breadcrumb-title">Loading Assignment...</li>
+            </ol>
+        </nav>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white">
+                <h2 id="assignment-title">Loading...</h2>
+                <p class="text-muted mb-0" id="due-date">Due: ...</p>
+            </div>
+            <div class="card-body">
+                <p id="assignment-description">Loading description...</p>
+            </div>
+            <div class="card-body border-top">
+                <h5 class="card-title">Submissions</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Student</th>
+                                <th>Submitted At</th>
+                                <th>File</th>
+                                <th>Grade</th>
+                                <th>Feedback</th>
+                                <th>Action</th>
+                            </tr>
+                        </thead>
+                        <tbody id="submissions-table-body">
+                            <!-- Submissions will be dynamically inserted here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const assignmentId = window.location.pathname.split('/').pop();
+        const submissionsTableBody = document.getElementById('submissions-table-body');
+
+        async function fetchAndDisplayData() {
+            try {
+                const detailsResponse = await fetch(`/api/teacher/assignment/${assignmentId}/details`);
+                const details = await detailsResponse.json();
+                document.getElementById('assignment-breadcrumb-title').textContent = details.title;
+                document.getElementById('class-breadcrumb-link').textContent = details.class_name;
+                document.getElementById('class-breadcrumb-link').href = `/teacher/class/${details.class_id}`;
+                document.getElementById('assignment-title').textContent = details.title;
+                document.getElementById('due-date').textContent = `Due: ${new Date(details.due_date).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' })}`;
+                document.getElementById('assignment-description').textContent = details.description || 'No description provided.';
+                
+                const submissionsResponse = await fetch(`/api/assignment/${assignmentId}/submissions`);
+                const submissions = await submissionsResponse.json();
+                
+                if (submissions.length === 0) {
+                    submissionsTableBody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">No submissions yet.</td></tr>';
+                    return;
+                }
+                submissionsTableBody.innerHTML = '';
+                submissions.forEach(submission => {
+                    const submittedDate = new Date(submission.submitted_at).toLocaleString();
+                    const lateBadge = submission.is_late ? '<span class="badge bg-danger ms-2">Late</span>' : '';
+                    const tableRow = `
+                        <tr data-submission-id="${submission.submission_id}">
+                            <td>
+                                <div>${submission.name}</div>
+                                <small class="text-muted">${submission.email}</small>
+                            </td>
+                            <td>${submittedDate} ${lateBadge}</td>
+                            <td>
+                                <a href="/uploads/${submission.file_path}" class="btn btn-sm btn-outline-secondary" download>Download</a>
+                            </td>
+                            <td>
+                                <input type="text" name="grade" class="form-control form-control-sm grade-input" value="${submission.grade || ''}" placeholder="e.g., A+">
+                            </td>
+                            <td>
+                                <textarea name="feedback" class="form-control form-control-sm feedback-input" rows="1">${submission.feedback || ''}</textarea>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-primary save-grade-btn" data-submission-id="${submission.submission_id}">Save</button>
+                            </td>
+                        </tr>
+                    `;
+                    submissionsTableBody.innerHTML += tableRow;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('assignment-title').textContent = 'Error loading page.';
+            }
+        }
+
+        // Event listener to handle all "Save" button clicks
+        submissionsTableBody.addEventListener('click', async (event) => {
+            if (event.target.classList.contains('save-grade-btn')) {
+                const saveButton = event.target;
+                const submissionId = saveButton.dataset.submissionId;
+                const tableRow = document.querySelector(`tr[data-submission-id='${submissionId}']`);
+                
+                const grade = tableRow.querySelector('.grade-input').value;
+                const feedback = tableRow.querySelector('.feedback-input').value;
+                
+                // Show saving status
+                saveButton.textContent = 'Saving...';
+                saveButton.disabled = true;
+
+                try {
+                    const response = await fetch(`/api/submission/${submissionId}/grade`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ grade, feedback }),
+                    });
+
+                    if (response.ok) {
+                        saveButton.textContent = 'Saved!';
+                        setTimeout(() => {
+                            saveButton.textContent = 'Save';
+                        }, 2000); // Reset after 2 seconds
+                    } else {
+                        throw new Error('Failed to save');
+                    }
+                } catch (error) {
+                    console.error('Error saving grade:', error);
+                    alert('Could not save grade. Please try again.');
+                    saveButton.textContent = 'Save';
+                } finally {
+                     saveButton.disabled = false;
+                }
+            }
+        });
+
+        window.addEventListener('DOMContentLoaded', fetchAndDisplayData);
+    </script>
+</body>
+</html>

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>View Class</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-success">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/student-dashboard">Student Portal</a>
+            <a href="/logout" class="btn btn-light">Logout</a>
+        </div>
+    </nav>
+    <div class="container py-5">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a href="/student-dashboard">Dashboard</a></li>
+                <li class="breadcrumb-item active" aria-current="page" id="class-breadcrumb-name">Loading...</li>
+            </ol>
+        </nav>
+        <h1 id="class-title">Loading Class...</h1>
+        <p class="lead" id="teacher-subtitle"></p>
+        <hr class="my-4">
+        <div class="mb-5">
+            <h3>Assignments</h3>
+            <div class="list-group" id="assignments-list"></div>
+        </div>
+        <div>
+            <h3>Study Materials</h3>
+            <ul class="list-group" id="materials-list"></ul>
+        </div>
+    </div>
+    <script>
+        const classId = window.location.pathname.split('/').pop();
+        async function fetchClassDetails() {
+            try {
+                const response = await fetch(`/api/student/class/${classId}/details`);
+                const classDetails = await response.json();
+                document.getElementById('class-breadcrumb-name').textContent = classDetails.class_name;
+                document.getElementById('class-title').textContent = classDetails.class_name;
+                document.getElementById('teacher-subtitle').textContent = `Taught by ${classDetails.teacher_name}`;
+            } catch (error) {
+                console.error('Failed to fetch class details:', error);
+            }
+        }
+        async function fetchMaterials() {
+            const materialsList = document.getElementById('materials-list');
+            try {
+                const response = await fetch(`/api/class/${classId}/materials`);
+                const materials = await response.json();
+                if (materials.length === 0) {
+                    materialsList.innerHTML = '<li class="list-group-item">No materials have been uploaded for this class yet.</li>';
+                    return;
+                }
+                materialsList.innerHTML = '';
+                materials.forEach(material => {
+                    const listItem = `
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="my-0">${material.title}</h6>
+                                <small class="text-muted">${material.description || ''}</small>
+                            </div>
+                            <a href="/uploads/${material.file_path}" class="btn btn-sm btn-outline-success" download>Download</a>
+                        </li>
+                    `;
+                    materialsList.innerHTML += listItem;
+                });
+            } catch (error) {
+                console.error('Failed to fetch materials:', error);
+            }
+        }
+        async function fetchAssignments() {
+            const assignmentsList = document.getElementById('assignments-list');
+            try {
+                const response = await fetch(`/api/class/${classId}/assignments`);
+                const assignments = await response.json();
+                if (assignments.length === 0) {
+                    assignmentsList.innerHTML = '<div class="list-group-item">No assignments have been posted yet.</div>';
+                    return;
+                }
+                assignmentsList.innerHTML = '';
+                assignments.forEach(assignment => {
+                    const dueDate = new Date(assignment.due_date).toLocaleString('en-US', { dateStyle: 'long', timeStyle: 'short' });
+                    const fileCount = assignment.files ? assignment.files.length : 0;
+                    const fileIndicator = fileCount > 0 ? `<small class="text-muted ms-2">(${fileCount} file${fileCount > 1 ? 's' : ''})</small>` : '';
+                    const listItem = `
+                        <a href="/student/assignment/${assignment.assignment_id}" class="list-group-item list-group-item-action">
+                            <div class="d-flex w-100 justify-content-between">
+                                <h6 class="mb-1">${assignment.title}${fileIndicator}</h6>
+                                <small>Due: ${dueDate}</small>
+                            </div>
+                            <p class="mb-1 text-muted small">${assignment.description || ''}</p>
+                        </a>
+                    `;
+                    assignmentsList.innerHTML += listItem;
+                });
+            } catch (error) {
+                console.error('Failed to fetch assignments:', error);
+            }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchClassDetails();
+            fetchAssignments();
+            fetchMaterials();
+        });
+    </script>
+</body>
+</html>

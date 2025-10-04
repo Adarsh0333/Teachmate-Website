@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teacher Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        .class-card-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .class-card-link .card-body:hover {
+            background-color: #f8f9fa;
+        }
+    </style>
+</head>
+<body class="bg-light">
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="/teacher-dashboard">Teacher Portal</a>
+            <a href="/logout" class="btn btn-light">Logout</a>
+        </div>
+    </nav>
+    <div class="container py-5">
+        <h1 class="display-5">Teacher Dashboard 👩‍🏫</h1>
+        <p class="lead">From here, you can create new classes for your courses.</p>
+        <hr class="my-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title">Create a New Class</h5>
+                <form action="/create-class" method="POST">
+                    <div class="mb-3">
+                        <label for="course-select" class="form-label">Select Course</label>
+                        <select class="form-select" id="course-select" name="courseId" required>
+                            <option selected disabled value="">Loading courses...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="class-name" class="form-label">Class Name (e.g., Section A)</label>
+                        <input type="text" class="form-control" id="class-name" name="className" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="semester-name" class="form-label">Semester Name</label>
+                            <input type="text" class="form-control" id="semester-name" name="semesterName" placeholder="e.g., Fall, Spring" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="year" class="form-label">Year</label>
+                            <input type="number" class="form-control" id="year" name="year" min="2024" value="2025" required>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Create Class</button>
+                </form>
+            </div>
+        </div>
+        <div class="mt-5">
+            <h3>My Classes</h3>
+            <div id="class-list" class="row"></div>
+        </div>
+    </div>
+    <script>
+        async function fetchCourses() {
+            const courseSelect = document.getElementById('course-select');
+            try {
+                const response = await fetch('/api/courses');
+                const courses = await response.json();
+                courseSelect.innerHTML = '<option selected disabled value="">Choose a course...</option>';
+                courses.forEach(course => {
+                    const option = document.createElement('option');
+                    option.value = course.course_id;
+                    option.textContent = course.course_name;
+                    courseSelect.appendChild(option);
+                });
+            } catch (error) {
+                console.error('Failed to fetch courses:', error);
+            }
+        }
+        async function fetchAndDisplayClasses() {
+            const classListDiv = document.getElementById('class-list');
+            try {
+                const response = await fetch('/api/teacher/classes');
+                const classes = await response.json();
+                if (classes.length === 0) {
+                    classListDiv.innerHTML = '<p class="text-muted">You have not created any classes yet.</p>';
+                    return;
+                }
+                classListDiv.innerHTML = '';
+                classes.forEach(cls => {
+                    const classCard = `
+                        <div class="col-md-4 mb-3">
+                            <div class="card h-100">
+                                <a href="/teacher/class/${cls.class_id}" class="class-card-link">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${cls.class_name}</h5>
+                                        <h6 class="card-subtitle mb-2 text-muted">${cls.course_name}</h6>
+                                        <p class="card-text mb-1"><small>${cls.semester_name} ${cls.year}</small></p>
+                                        <p class="card-text">Join Code: 
+                                            <span class="fw-bold text-success">${cls.join_code}</span>
+                                        </p>
+                                    </div>
+                                </a>
+                                <div class="card-footer bg-white border-0 text-end">
+                                    <form action="/class/${cls.class_id}/delete" method="POST" onsubmit="return confirm('Are you sure you want to delete this class and all its materials? This action cannot be undone.');">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">Delete Class</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    classListDiv.innerHTML += classCard;
+                });
+            } catch (error) {
+                console.error('Failed to fetch classes:', error);
+            }
+        }
+        window.addEventListener('DOMContentLoaded', () => {
+            fetchCourses();
+            fetchAndDisplayClasses();
+        });
+    </script>
+</body>
+</html>
